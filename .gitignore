@@ -1,0 +1,36 @@
+# Python / build
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+.venv/
+venv/
+env/
+build/
+dist/
+*.egg-info/
+
+# Тесты / типизация / покрытия
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# IDE / редакторы
+.vscode/
+.idea/
+
+# ОС
+.DS_Store
+Thumbs.db
+
+# Секреты и конфиги окружения
+.env
+.env.*
+.env.local
+
+# Логи
+logs/
+*.log
