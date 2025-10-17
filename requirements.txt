@@ -1,4 +1,18 @@
+# Core web stack
 fastapi==0.118.3
 uvicorn[standard]==0.37.0
-openai>=1.30.0
-pydantic>=2.6
+
+# HTTP клиент для createInvoiceLink и прочих вызовов
+httpx>=0.27.0,<0.28
+
+# OpenAI / OpenRouter SDK
+openai>=1.30.0,<2.0
+
+# Валидация моделей
+pydantic>=2.6,<3.0
+
+# Быстрый JSON (не обязательно, но ускоряет FastAPI)
+orjson>=3.10.3,<4.0
+
+# Удобно для локальной отладки переменных окружения (опционально)
+python-dotenv>=1.0.1,<2.0
