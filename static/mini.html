@@ -1,18 +1,17 @@
 <!doctype html>
-<html lang="ru">
+<html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <title>Подписка GPT-5 PRO</title>
   <style>
-    :root{color-scheme:dark}
     body{margin:16px;font-family:-apple-system,system-ui,Arial;background:#0f1115;color:#fff}
     .card{background:#171a21;border-radius:12px;padding:16px}
     .h{font-size:18px;font-weight:700;margin:0 0 6px}
     .p{opacity:.9;margin:0 0 12px;line-height:1.4}
     .sel{display:flex;gap:8px;margin:10px 0}
-    .opt{flex:1;padding:10px 12px;border-radius:8px;background:#2b2f36;text-align:center;cursor:pointer;user-select:none}
+    .opt{flex:1;padding:10px 12px;border-radius:8px;background:#2b2f36;text-align:center;cursor:pointer}
     .opt.active{outline:2px solid #2ea44f}
     .btn{display:block;width:100%;padding:14px 16px;border-radius:10px;background:#2ea44f;color:#fff;font-weight:600;text-align:center;text-decoration:none}
     .ghost{background:#2b2f36;margin-top:8px}
@@ -24,57 +23,60 @@
     <div class="h">Подписка GPT-5 PRO</div>
     <div class="p">Быстрые ответы, расширенные режимы, приоритетная очередь.</div>
 
-    <div class="sel" id="plans">
+    <div class="sel">
       <div class="opt active" data-plan="month">Месяц · 999 ₽</div>
       <div class="opt" data-plan="quarter">3 мес · 2 699 ₽</div>
       <div class="opt" data-plan="year">Год · 8 999 ₽</div>
     </div>
 
-    <a id="buy" class="btn" href="javascript:void(0)">Оформить подписку</a>
-    <a id="check" class="btn ghost" href="javascript:void(0)">Проверить статус</a>
-    <div class="hint">Оплата через Telegram Payments (ЮKassa). Нажимая «Оформить подписку», вы отправляете запрос в бота — он пришлёт счёт в чат.</div>
+    <a id="buy" class="btn">Оформить подписку</a>
+    <a id="check" class="btn ghost">Проверить статус</a>
+    <div class="hint">Оплата через Telegram Payments (ЮKassa).</div>
   </div>
 
 <script>
 (function(){
-  const tg = window.Telegram?.WebApp;
-  if (!tg || !tg.initDataUnsafe) {
-    alert("Откройте страницу из Telegram-бота.");
-    return;
-  }
-  tg.ready(); tg.expand();
+  const tg = window.Telegram.WebApp;
+  tg.expand();
 
-  // выбор тарифа
+  // !!! ВАЖНО: впиши ЮЗЕРНЕЙМ своего бота без @
+  const BOT_USERNAME = "BOT_USERNAME_HERE";
+
   let plan = "month";
   document.querySelectorAll(".opt").forEach(o=>{
-    o.addEventListener("click",()=>{
+    o.onclick = ()=>{
       document.querySelectorAll(".opt").forEach(x=>x.classList.remove("active"));
       o.classList.add("active");
       plan = o.dataset.plan;
-    });
+    };
   });
 
-  // отправка события в бота: СЧЁТ
-  document.getElementById("buy").addEventListener("click", ()=>{
+  function sendToBot(payload){
     try{
-      const payload = { type: "subscribe", plan };
-      tg.sendData(JSON.stringify(payload)); // бот ловит StatusUpdate.WEB_APP_DATA
-      // Telegram сам сворачивает мини-аппу; на всякий случай подсказка:
-      tg.showPopup({title:"Оформление",message:"Открываю счёт в чате…"});
+      tg.sendData(JSON.stringify(payload));
+      // Закрываем WebView — Telegram покажет «Вы успешно передали данные…»
+      tg.close();
+      return true;
     }catch(e){
-      tg.showAlert("Не удалось отправить запрос боту: "+e);
+      return false;
     }
-  });
+  }
 
-  // отправка события в бота: СТАТУС
-  document.getElementById("check").addEventListener("click", ()=>{
-    try{
-      tg.sendData(JSON.stringify({ type: "status" }));
-      tg.showPopup({title:"Статус",message:"Запрос статуса отправлен в чат."});
-    }catch(e){
-      tg.showAlert("Не удалось отправить запрос боту: "+e);
+  document.getElementById("buy").onclick = ()=>{
+    const ok = sendToBot({type:"subscribe_click", plan});
+    if(!ok){
+      // Фолбэк, если открыт не в Telegram WebView
+      const start = encodeURIComponent("buy_"+plan);
+      tg.openTelegramLink(`https://t.me/${BOT_USERNAME}?start=${start}`);
     }
-  });
+  };
+
+  document.getElementById("check").onclick = ()=>{
+    const ok = sendToBot({type:"status_check"});
+    if(!ok){
+      tg.openTelegramLink(`https://t.me/${BOT_USERNAME}?start=pro_status`);
+    }
+  };
 })();
 </script>
 </body>
