@@ -6,15 +6,17 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <title>Подписка GPT-5 PRO</title>
   <style>
-    body{margin:16px;font-family:-apple-system,system-ui,Arial;background:#0f1115;color:#fff}
-    .card{background:#171a21;border-radius:12px;padding:16px}
+    :root{--bg:#0f1115;--card:#171a21;--muted:#2b2f36;--accent:#2ea44f;--text:#fff}
+    *{box-sizing:border-box}
+    body{margin:16px;font-family:-apple-system,system-ui,Arial;background:var(--bg);color:var(--text)}
+    .card{background:var(--card);border-radius:12px;padding:16px}
     .h{font-size:18px;font-weight:700;margin:0 0 6px}
     .p{opacity:.9;margin:0 0 12px;line-height:1.4}
     .sel{display:flex;gap:8px;margin:10px 0}
-    .opt{flex:1;padding:10px 12px;border-radius:8px;background:#2b2f36;text-align:center;cursor:pointer}
-    .opt.active{outline:2px solid #2ea44f}
-    .btn{display:block;width:100%;padding:14px 16px;border-radius:10px;background:#2ea44f;color:#fff;font-weight:600;text-align:center;text-decoration:none}
-    .ghost{background:#2b2f36;margin-top:8px}
+    .opt{flex:1;padding:10px 12px;border-radius:8px;background:var(--muted);text-align:center;cursor:pointer;user-select:none}
+    .opt.active{outline:2px solid var(--accent)}
+    .btn{display:block;width:100%;padding:14px 16px;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;text-align:center;text-decoration:none}
+    .ghost{background:var(--muted);margin-top:8px}
     .hint{font-size:12px;opacity:.7;margin-top:8px}
   </style>
 </head>
@@ -23,7 +25,7 @@
     <div class="h">Подписка GPT-5 PRO</div>
     <div class="p">Быстрые ответы, расширенные режимы, приоритетная очередь.</div>
 
-    <div class="sel">
+    <div class="sel" id="plans">
       <div class="opt active" data-plan="month">Месяц · 999 ₽</div>
       <div class="opt" data-plan="quarter">3 мес · 2 699 ₽</div>
       <div class="opt" data-plan="year">Год · 8 999 ₽</div>
@@ -35,29 +37,57 @@
   </div>
 
 <script>
-const tg = window.Telegram.WebApp; tg.expand();
-let plan = "month";
-document.querySelectorAll(".opt").forEach(o=>{
-  o.onclick = ()=>{ document.querySelectorAll(".opt").forEach(x=>x.classList.remove("active"));
-                    o.classList.add("active"); plan = o.dataset.plan; };
-});
-document.getElementById("buy").onclick = async ()=>{
-  try{
-    const r = await fetch("/api/create-invoice",{
-      method:"POST", headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({plan})
-    });
-    const data = await r.json();
-    tg.openInvoice(data.invoice_link,(status)=>{
-      if(status==="paid"){ tg.showAlert("✅ Оплачено! Доступ активируется автоматически."); }
-      else if(status==="cancelled"){ tg.showAlert("Платёж отменён."); }
-      else if(status==="failed"){ tg.showAlert("Ошибка платежа."); }
-    });
-  }catch(e){ tg.showAlert("Ошибка создания счёта: "+e); }
-};
-document.getElementById("check").onclick = ()=>{
-  tg.openTelegramLink(`https://t.me/%BOT_USERNAME%?start=pro_status`);
-};
+(function(){
+  const tg = window.Telegram?.WebApp;
+  if (tg) tg.expand();
+
+  // выбор плана
+  let currentPlan = "month";
+  document.querySelectorAll(".opt").forEach(o=>{
+    o.onclick = ()=>{
+      document.querySelectorAll(".opt").forEach(x=>x.classList.remove("active"));
+      o.classList.add("active");
+      currentPlan = o.dataset.plan;
+    };
+  });
+
+  // ---- покупка ----
+  document.getElementById("buy").onclick = async ()=>{
+    // если внутри Telegram WebApp — отправляем событие в бота
+    if (tg && tg.sendData) {
+      tg.sendData(JSON.stringify({ type:"subscribe", plan: currentPlan }));
+      return; // бот пришлёт инвойс нативно в чат
+    }
+
+    // fallback для теста в обычном браузере:
+    try{
+      const r = await fetch("/api/create-invoice", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ plan: currentPlan })
+      });
+      const data = await r.json();
+      if (data && data.invoice_link) {
+        window.location.href = data.invoice_link; // откроет t.me/invoice...
+      } else {
+        alert("Не удалось создать счёт.\n" + JSON.stringify(data));
+      }
+    }catch(e){
+      alert("Ошибка создания счёта: "+e);
+    }
+  };
+
+  // ---- статус ----
+  document.getElementById("check").onclick = ()=>{
+    if (tg && tg.sendData) {
+      tg.sendData(JSON.stringify({ type:"status" }));
+    } else {
+      // если просто в браузере — открываем бота
+      const bot = "%BOT_USERNAME%".replace(/^@/,'');
+      if (bot) window.open(`https://t.me/${bot}?start=pro_status`, "_blank");
+    }
+  };
+})();
 </script>
 </body>
 </html>
