@@ -1,21 +1,24 @@
 <!doctype html>
-<html>
+<html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <title>Подписка GPT-5 PRO</title>
   <style>
+    :root{color-scheme:dark}
     body{margin:16px;font-family:-apple-system,system-ui,Arial;background:#0f1115;color:#fff}
     .card{background:#171a21;border-radius:12px;padding:16px}
-    .h{font-size:18px;font-weight:700;margin:0 0 6px}
-    .p{opacity:.9;margin:0 0 12px;line-height:1.4}
+    .h{font-size:20px;font-weight:800;margin:0 0 6px}
+    .p{opacity:.9;margin:0 0 12px;line-height:1.45}
     .sel{display:flex;gap:8px;margin:10px 0}
-    .opt{flex:1;padding:10px 12px;border-radius:8px;background:#2b2f36;text-align:center;cursor:pointer}
+    .opt{flex:1;padding:10px 12px;border-radius:8px;background:#2b2f36;text-align:center;cursor:pointer;user-select:none}
     .opt.active{outline:2px solid #2ea44f}
-    .btn{display:block;width:100%;padding:14px 16px;border-radius:10px;background:#2ea44f;color:#fff;font-weight:600;text-align:center;text-decoration:none}
+    .btn{display:block;width:100%;padding:14px 16px;border-radius:10px;background:#2ea44f;color:#fff;font-weight:700;text-align:center;text-decoration:none}
     .ghost{background:#2b2f36;margin-top:8px}
-    .hint{font-size:12px;opacity:.7;margin-top:8px}
+    .hint{font-size:12px;opacity:.7;margin-top:10px}
+    .warn{font-size:13px;background:#2b2f36;padding:10px;border-radius:8px;margin-top:12px;display:none}
+    .small{font-size:12px;opacity:.8}
   </style>
 </head>
 <body>
@@ -23,58 +26,77 @@
     <div class="h">Подписка GPT-5 PRO</div>
     <div class="p">Быстрые ответы, расширенные режимы, приоритетная очередь.</div>
 
-    <div class="sel">
+    <div class="sel" id="plans">
       <div class="opt active" data-plan="month">Месяц · 999 ₽</div>
       <div class="opt" data-plan="quarter">3 мес · 2 699 ₽</div>
       <div class="opt" data-plan="year">Год · 8 999 ₽</div>
     </div>
 
-    <a id="buy" class="btn">Оформить подписку</a>
-    <a id="check" class="btn ghost">Проверить статус</a>
-    <div class="hint">Оплата через Telegram Payments (ЮKassa). Нажимая «Оформить подписку», вы отправляете запрос в бота — он пришлёт счёт в чат.</div>
+    <a id="buy" class="btn" role="button">Оформить подписку</a>
+    <a id="check" class="btn ghost" role="button">Проверить статус</a>
+
+    <div class="hint">Оплата идёт через Telegram Payments (ЮKassa). При нажатии «Оформить подписку» мини-аппа сворачивается — бот пришлёт счёт в чат.</div>
+    <div id="warn" class="warn"></div>
   </div>
 
 <script>
 (function(){
-  const tg = window.Telegram?.WebApp;
-  if (tg) {
-    tg.expand();
-    tg.ready();
-  }
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
+  // UI
   let plan = "month";
   document.querySelectorAll(".opt").forEach(o=>{
-    o.onclick = ()=>{
+    o.addEventListener("click", ()=>{
       document.querySelectorAll(".opt").forEach(x=>x.classList.remove("active"));
       o.classList.add("active");
       plan = o.dataset.plan;
-    };
+    });
   });
 
-  // ВАЖНО: отправляем данные в БОТА, он создаёт счёт.
-  document.getElementById("buy").onclick = ()=>{
-    try{
-      const payload = { type: "subscribe", plan };
-      if (!tg) {
-        alert("Откройте эту страницу из Telegram (кнопка «⭐ Подписка»).");
-        return;
-      }
-      tg.sendData(JSON.stringify(payload));
-      // мягко закрываем, чтобы пользователь увидел инвойс в чате
-      setTimeout(()=>{ try{ tg.close(); }catch(e){} }, 150);
-    }catch(e){
-      if (tg?.showAlert) tg.showAlert("Не удалось отправить данные в бот: " + e);
-      else alert("Не удалось отправить данные в бот: " + e);
-    }
-  };
+  // Если открыто не в Telegram (прямой заход в браузере), покажем подсказку и линк.
+  function showBrowserHint(){
+    const el = document.getElementById("warn");
+    el.style.display = "block";
+    // ⚠️ Укажи НИЖЕ username своего бота, если хочешь рабочий fallback из браузера.
+    const BOT_USERNAME = "progpt5_bot"; // ← при желании поменяй на свой @username
+    el.innerHTML =
+      'Похоже, страница открыта вне Telegram. Откройте мини-приложение из чата бота или '+
+      `<a href="https://t.me/${BOT_USERNAME}?start=subscribe" style="color:#2ea44f">перейдите в бота</a>.`;
+  }
 
-  document.getElementById("check").onclick = ()=>{
-    if (tg?.openTelegramLink) {
-      tg.openTelegramLink("https://t.me/progpt5_bot?start=pro_status");
-    } else {
-      location.href = "https://t.me/progpt5_bot?start=pro_status";
+  // Всегда используем sendData — это надёжнее, чем открывать t.me/… и не привязано к username.
+  function safeSendData(obj){
+    if(!tg || !tg.sendData){
+      showBrowserHint();
+      return;
     }
-  };
+    try{
+      tg.sendData(JSON.stringify(obj));
+      // На всякий случай сведём/расширим интерфейс — иногда помогает визуально.
+      tg.close && tg.close(); // Telegram сам свернёт апку; если нет — закроем вручную.
+    }catch(e){
+      if(tg && tg.showAlert){ tg.showAlert("Не удалось отправить событие в бота: "+e); }
+      showBrowserHint();
+    }
+  }
+
+  // Кнопки
+  document.getElementById("buy").addEventListener("click", (ev)=>{
+    ev.preventDefault();
+    safeSendData({type:"subscribe", plan});
+  });
+  document.getElementById("check").addEventListener("click", (ev)=>{
+    ev.preventDefault();
+    safeSendData({type:"status"});
+  });
+
+  // Инициализация Telegram WebApp
+  if(tg){
+    try{ tg.ready && tg.ready(); }catch(_){}
+    try{ tg.expand && tg.expand(); }catch(_){}
+  } else {
+    showBrowserHint();
+  }
 })();
 </script>
 </body>
